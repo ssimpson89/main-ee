@@ -12,48 +12,49 @@ dependencies:
   galaxy: |
     ---
     collections:
-      - name: awx.awx
-      - name: azure.azcollection
       - name: amazon.aws
-      - name: theforeman.foreman
-      - name: google.cloud
-      - name: openstack.cloud
-      - name: community.vmware
-      - name: ovirt.ovirt
-      - name: kubernetes.core
       - name: ansible.posix
       - name: ansible.windows
+      - name: awx.awx
+      - name: azure.azcollection
+      - name: community.windows
+      - name: community.vmware
+      - name: kubernetes.core
+      - name: google.cloud
+      - name: openstack.cloud
+      - name: ovirt.ovirt
+      - name: theforeman.foreman
   system: |
-    git-core [platform:rpm]
+    epel-release [platform:rpm]
     gcc [platform:rpm]
     gcc-c++ [platform:rpm]
-    python3.9-devel [platform:rpm compile]
-    libcurl-devel [platform:rpm compile]
+    git-core [platform:rpm]
+    git-lfs [platform:rpm]
     krb5-devel [platform:rpm compile]
     krb5-workstation [platform:rpm]
-    subversion [platform:rpm]
-    subversion [platform:dpkg]
-    git-lfs [platform:rpm]
-    sshpass [platform:rpm]
-    rsync [platform:rpm]
-    epel-release [platform:rpm]
-    python-unversioned-command [platform:rpm]
-    unzip [platform:rpm]
+    libcurl-devel [platform:rpm compile]
     podman-remote [platform:rpm]
+    python3.9-devel [platform:rpm compile]
+    python-unversioned-command [platform:rpm]
+    rsync [platform:rpm]
+    sshpass [platform:rpm]
+    subversion [platform:dpkg]
+    subversion [platform:rpm]
+    unzip [platform:rpm]
   python: |
     git+https://github.com/ansible/ansible-sign
     ncclient
     paramiko
+    pexpect>=4.5
     pykerberos
     pyOpenSSL
     pypsrp[kerberos,credssp]
-    pywinrm[kerberos,credssp]
-    toml
-    pexpect>=4.5
     python-daemon
+    pywinrm[kerberos,credssp]
     pyyaml
-    six
     receptorctl
+    six
+    toml
 additional_build_steps:
   append_base:
     - RUN $PYCMD -m pip install -U pip
