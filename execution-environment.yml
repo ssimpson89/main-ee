@@ -69,6 +69,9 @@ dependencies:
     six
     toml
     boto3
+additional_build_files:
+  - src: sudoers
+    dest: configs
 additional_build_steps:
   append_base:
     - RUN $PYCMD -m pip install -U pip
@@ -76,3 +79,5 @@ additional_build_steps:
     - COPY --from=quay.io/ansible/receptor:devel /usr/bin/receptor /usr/bin/receptor
     - RUN mkdir -p /var/run/receptor
     - RUN git lfs install --system
+    - ADD _build/configs/sudoers /etc/sudoers
+    - RUN chmod 440 /etc/sudoers
