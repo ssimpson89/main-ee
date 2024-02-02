@@ -82,5 +82,5 @@ additional_build_steps:
     - ADD _build/configs/sudoers /etc/sudoers
     - RUN chmod 440 /etc/sudoers
     - RUN mkdir -p /runner
-    - RUN chown -R ascender:wheel /runner
     - RUN useradd -G wheel -M -u 1000 -d /runner ascender
+    - RUN chown -R ascender:wheel /runner
