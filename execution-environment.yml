@@ -81,4 +81,6 @@ additional_build_steps:
     - RUN git lfs install --system
     - ADD _build/configs/sudoers /etc/sudoers
     - RUN chmod 440 /etc/sudoers
-    - RUN useradd -G wheel -M -u 1000 ascender
+    - RUN mkdir -p /runner
+    - RUN chown -R ascender:wheel /runner
+    - RUN useradd -G wheel -M -u 1000 -d /runner ascender
