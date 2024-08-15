@@ -69,6 +69,7 @@ dependencies:
     six
     toml
     boto3
+    proxmoxer
 additional_build_files:
   - src: sudoers
     dest: configs
