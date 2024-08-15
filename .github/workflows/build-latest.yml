@@ -5,9 +5,9 @@ on:
     # build and push anytime commits are merged to devel
     branches:
       - main
-  schedule:
-    # build every 12 hours
-    - cron: '0 */12 * * *'
+  # schedule:
+  #   # build every 12 hours
+  #   - cron: '0 */12 * * *'
 
 jobs:
   build_and_push_latest:
