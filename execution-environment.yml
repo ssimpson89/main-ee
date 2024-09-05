@@ -36,6 +36,8 @@ dependencies:
         version: ">=3.2.0"
       - name: theforeman.foreman
         version: ">=3.15.0"
+      - name: vultr.cloud
+        version: ">=1.13.0"
   system: |
     epel-release [platform:rpm]
     gcc [platform:rpm]
