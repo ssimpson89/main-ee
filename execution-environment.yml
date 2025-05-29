@@ -58,6 +58,8 @@ dependencies:
     subversion [platform:rpm]
     unzip [platform:rpm]
     sudo [platform:rpm]
+    libxcrypt-compat.x86_64 [platform:rpm]
+    google-cloud-cli [platform:rpm]
   python: |
     git+https://github.com/ansible/ansible-sign
     ncclient
@@ -74,9 +76,13 @@ dependencies:
     toml
     boto3
     proxmoxer
+    google-auth
+    requests
 additional_build_files:
-  - src: sudoers
+  - src: includes/sudoers
     dest: configs
+  - src: includes/google-cloud-cli.repo
+    dest: condigs
 additional_build_steps:
   append_base:
     - RUN $PYCMD -m pip install -U pip
@@ -86,6 +92,7 @@ additional_build_steps:
     - RUN git lfs install --system
     - ADD _build/configs/sudoers /etc/sudoers
     - RUN chmod 440 /etc/sudoers
+    - ADD _build/configs/google-cloud-cli.repo /etc/yum.repos.d/google-cloud-cli.repo
     - RUN mkdir -p /runner
     - RUN useradd -G wheel -M -u 1000 -d /runner ascender
     - RUN chown -R ascender:wheel /runner
