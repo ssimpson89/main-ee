@@ -11,7 +11,7 @@ on:
 
 jobs:
   podman:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     name: Podman
     steps:
       - uses: actions/checkout@v2
@@ -30,7 +30,7 @@ jobs:
           tox -e podman
 
   docker:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     name: Docker
     steps:
       - uses: actions/checkout@v2
