@@ -2,12 +2,12 @@
 
 name: CI
 
-on:
-  pull_request:
-    branches: [main]
+# on:
+#   pull_request:
+#     branches: [main]
 
-  push:
-    branches: [main]
+#   push:
+#     branches: [main]
 
 jobs:
   podman:
