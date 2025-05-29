@@ -82,7 +82,7 @@ additional_build_files:
   - src: includes/sudoers
     dest: configs
   - src: includes/google-cloud-cli.repo
-    dest: condigs
+    dest: configs
 additional_build_steps:
   append_base:
     - RUN $PYCMD -m pip install -U pip
