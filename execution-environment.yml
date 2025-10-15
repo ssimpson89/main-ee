@@ -80,6 +80,7 @@ dependencies:
     proxmoxer
     google-auth
     requests
+    passlib
 additional_build_files:
   - src: includes/sudoers
     dest: configs
