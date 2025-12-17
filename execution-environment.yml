@@ -109,7 +109,7 @@ dependencies:
 additional_build_files:
   - src: sudoers
     dest: configs
-  - src: files/update-ca-trust
+  - src: includes/update-ca-trust
     dest: files
   - src: includes/google-cloud-cli.repo
     dest: configs
