@@ -107,7 +107,7 @@ dependencies:
       - python3-devel
       - python3-rpm
 additional_build_files:
-  - src: sudoers
+  - src: includes/sudoers
     dest: configs
   - src: includes/update-ca-trust
     dest: files
