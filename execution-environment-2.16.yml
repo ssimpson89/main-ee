@@ -2,7 +2,7 @@
 version: 3
 images:
   base_image:
-    name: rockylinux:9
+    name: rockylinux/rockylinux:9
 dependencies:
   ansible_core:
     # Ansible 2.16 for legacy support
