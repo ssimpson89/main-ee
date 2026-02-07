@@ -71,13 +71,13 @@ additional_build_files:
 additional_build_steps:
   append_base:
     - RUN $PYCMD -m pip install -U pip
-    - ADD configs/google-cloud-cli.repo /etc/yum.repos.d/google-cloud-cli.repo
+    - ADD _build/configs/google-cloud-cli.repo /etc/yum.repos.d/google-cloud-cli.repo
     - RUN dnf -y install google-cloud-cli
   prepend_final:
     - COPY --from=quay.io/ansible/receptor:devel /usr/bin/receptor /usr/bin/receptor
     - RUN mkdir -p /etc/receptor
   append_final:
-    - COPY configs/sudoers /etc/sudoers.d/ascender
+    - COPY _build/configs/sudoers /etc/sudoers.d/ascender
     - RUN chmod 0440 /etc/sudoers.d/ascender
     - RUN mkdir -p /runner && chown 1000:1000 /runner && chmod 0750 /runner
     - RUN useradd -u 1000 -m -s /bin/bash ascender
