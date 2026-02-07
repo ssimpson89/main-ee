@@ -5,9 +5,6 @@ images:
   base_image:
     name: rockylinux/rockylinux:9
 
-options:
-  package_manager_path: /usr/bin/dnf
-
 dependencies:
   ansible_core:
     package_pip: ansible-core>=2.20.0,<2.21
@@ -31,41 +28,48 @@ dependencies:
       - name: vultr.cloud
       - name: community.libvirt
       - name: community.proxmox
-  system:
-    - epel-release [platform:rpm]
-    - gcc [platform:rpm]
-    - git [platform:rpm]
-    - krb5-devel [platform:rpm]
-    - python3.11-devel [platform:rpm compile]
-    - sshpass [platform:rpm]
-    - podman-remote [platform:rpm]
-    - google-cloud-cli [platform:rpm]
-  python:
-    - ansible-sign
-    - ncclient
-    - paramiko
-    - pexpect
-    - pywinrm
-    - boto3
-    - proxmoxer
-    - google-auth
+  python: |
+    git+https://github.com/ansible/ansible-sign
+    ncclient
+    paramiko
+    pexpect
+    pywinrm
+    boto3
+    proxmoxer
+    google-auth
+  system: |
+    epel-release [platform:rpm]
+    gcc [platform:rpm]
+    git [platform:rpm]
+    krb5-devel [platform:rpm]
+    python3.11-devel [platform:rpm compile]
+    sshpass [platform:rpm]
+    podman-remote [platform:rpm]
+    google-cloud-cli [platform:rpm]
+
+additional_build_files:
+  - src: includes/configs/sudoers
+    dest: configs
+  - src: includes/configs/google-cloud-cli.repo
+    dest: configs
 
 additional_build_steps:
   prepend_base:
-    - RUN dnf -y install python3.11
-    - RUN ln -sf /usr/bin/python3.11 /usr/bin/python3
+    - RUN dnf -y install python3.11 python3.11-pip python3.11-devel
+    - RUN alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
+    - RUN alternatives --set python3 /usr/bin/python3.11
     - RUN python3 -m ensurepip
     - RUN python3 -m pip install -U pip
   append_base:
-    - ADD _build/configs/sudoers /etc/sudoers.d/ascender
-    - RUN chmod 0440 /etc/sudoers.d/ascender
-    - ADD _build/configs/google-cloud-cli.repo /etc/yum.repos.d/google-cloud-cli.repo
-  append_final:
+    - RUN $PYCMD -m pip install -U pip
+    - ADD configs/google-cloud-cli.repo /etc/yum.repos.d/google-cloud-cli.repo
+    - RUN dnf -y install google-cloud-cli
+  prepend_final:
     - COPY --from=quay.io/ansible/receptor:devel /usr/bin/receptor /usr/bin/receptor
-    - RUN mkdir -p /var/run/receptor
-    - RUN mkdir -p /runner
-    - RUN useradd -u 1000 -m ascender
-    - RUN chown -R ascender:ascender /runner
-    - RUN chown -R ascender:ascender /var/run/receptor
-    - RUN chmod 0777 /runner
-    - RUN chmod 0777 /var/run/receptor
+    - RUN mkdir -p /etc/receptor
+  append_final:
+    - COPY configs/sudoers /etc/sudoers.d/ascender
+    - RUN chmod 0440 /etc/sudoers.d/ascender
+    - RUN mkdir -p /runner && chown 1000:1000 /runner && chmod 0750 /runner
+    - RUN useradd -u 1000 -m -s /bin/bash ascender
+    - RUN echo "ascender ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
