@@ -69,9 +69,9 @@ options:
     package_manager_path: /usr/bin/dnf
 
 additional_build_files:
-  - src: includes/configs/sudoers
+  - src: includes/sudoers
     dest: configs
-  - src: includes/configs/google-cloud-cli.repo
+  - src: includes/google-cloud-cli.repo
     dest: configs
 
 additional_build_steps:
