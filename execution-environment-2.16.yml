@@ -47,6 +47,8 @@ dependencies:
     krb5-workstation [platform:rpm]
     libcurl-devel [platform:rpm compile]
     podman-remote [platform:rpm]
+    python3.11 [platform:rpm]
+    python3.11-pip [platform:rpm]
     python3.11-devel [platform:rpm compile]
     python-unversioned-command [platform:rpm]
     rsync [platform:rpm]
@@ -58,6 +60,14 @@ dependencies:
     libxcrypt-compat.x86_64 [platform:rpm]
     google-cloud-cli [platform:rpm]
 
+build_arg_defaults:
+  PYCMD: /usr/bin/python3.11
+
+options:
+  container_init:
+    package_pip: pip>=21.1
+    package_manager_path: /usr/bin/dnf
+
 additional_build_files:
   - src: includes/configs/sudoers
     dest: configs
@@ -66,7 +76,6 @@ additional_build_files:
 
 additional_build_steps:
   prepend_base:
-    - RUN dnf -y install python3.11 python3.11-pip python3.11-devel
     - RUN alternatives --set python3 /usr/bin/python3.11
   append_base:
     - RUN $PYCMD -m pip install -U pip
@@ -81,8 +90,3 @@ additional_build_steps:
     - RUN mkdir -p /runner && chown 1000:1000 /runner && chmod 0750 /runner
     - RUN useradd -u 1000 -m -s /bin/bash ascender
     - RUN echo "ascender ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
-
-python_interpreter:
-  package_system: python3.11
-  python_path: /usr/bin/python3.11
-  package_manager_path: /usr/bin/microdnf

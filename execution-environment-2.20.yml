@@ -58,6 +58,10 @@ dependencies:
     libxcrypt-compat.x86_64 [platform:rpm]
     google-cloud-cli [platform:rpm]
 
+options:
+  container_init:
+    package_pip: pip>=21.1
+
 additional_build_files:
   - src: includes/configs/sudoers
     dest: configs
