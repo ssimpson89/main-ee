@@ -60,9 +60,6 @@ dependencies:
     libxcrypt-compat.x86_64 [platform:rpm]
     google-cloud-cli [platform:rpm]
 
-build_arg_defaults:
-  PYCMD: /usr/bin/python3.11
-
 options:
   container_init:
     package_pip: pip>=21.1
