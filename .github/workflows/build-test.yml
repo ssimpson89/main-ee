@@ -1,41 +1,56 @@
-name: Build and Push latest image
+---
+name: Build latest image
 
 on:
   workflow_dispatch:
-#   push:
-#     branches:
-#       - main
-  # schedule:
-  #   # build every 12 hours
-  #   - cron: '0 */12 * * *'
-
-permissions:
-  contents: read
-  packages: write
+  push:
+    branches:
+      - main
+      - master
 
 jobs:
-  build_and_push_latest:
+  build-2-15:
+    name: Build Ansible 2.15
     runs-on: ubuntu-latest
-    name: Build and push latest tag from devel and on new commits
+    permissions:
+      contents: read
+      packages: write
     steps:
-      - uses: actions/checkout@v2
-
-      - uses: actions/setup-python@v2
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Set up Python
+        uses: actions/setup-python@v2
         with:
-          python-version: "3.9"
-
-      - name: Install dependencies
+          python-version: 3.9
+      - name: Install deps
         run: |
           python -m pip install --upgrade pip
-          pip install tox
-
-      - name: Build image
-        env:
-          DOCKER_BUILDKIT: 1
+          pip install ansible-builder
+      - name: Build and Push EE 2.15
         run: |
-          tox -e docker -- --tag=ghcr.io/${{ github.repository_owner }}/main-ee:dev
+          docker rmi ghcr.io/ssimpson89/main-ee:dev-2.15 2>/dev/null || true
+          ansible-builder build -v3 -t ghcr.io/ssimpson89/main-ee:dev-2.15 --container-runtime=docker -f execution-environment-2.15.yml
+          docker push ghcr.io/ssimpson89/main-ee:dev-2.15
 
-      - name: Push images
+  build-2-16:
+    name: Build Ansible 2.16
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+      - name: Install deps
         run: |
-         echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
-         docker push ghcr.io/${{ github.repository_owner }}/main-ee:dev
+          python -m pip install --upgrade pip
+          pip install ansible-builder
+      - name: Build and Push EE 2.16
+        run: |
+          docker rmi ghcr.io/ssimpson89/main-ee:dev 2>/dev/null || true
+          ansible-builder build -v3 -t ghcr.io/ssimpson89/main-ee:dev --container-runtime=docker -f execution-environment.yml
+          docker push ghcr.io/ssimpson89/main-ee:dev
