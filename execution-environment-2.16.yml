@@ -63,7 +63,6 @@ dependencies:
 options:
   container_init:
     package_pip: pip>=21.1
-    package_manager_path: /usr/bin/dnf
 
 additional_build_files:
   - src: includes/sudoers
