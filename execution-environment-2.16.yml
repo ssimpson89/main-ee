@@ -54,7 +54,7 @@ dependencies:
     krb5-workstation [platform:rpm]
     libcurl-devel [platform:rpm compile]
     podman-remote [platform:rpm]
-    python3.11-devel [platform:rpm compile]
+    python3.11-devel [platform:rpm]
     rsync [platform:rpm]
     sshpass [platform:rpm]
     subversion [platform:dpkg]
