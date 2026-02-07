@@ -60,14 +60,14 @@ dependencies:
     libxcrypt-compat.x86_64 [platform:rpm]
     google-cloud-cli [platform:rpm]
 
+  python_interpreter:
+    package_system: python3.11
+    python_path: /usr/bin/python3.11
+
 options:
   package_manager_path: /usr/bin/microdnf
   container_init:
     package_pip: pip>=21.1
-
-python_interpreter:
-  package_system: python3.11
-  python_path: /usr/bin/python3.11
 
 additional_build_files:
   - src: includes/sudoers
