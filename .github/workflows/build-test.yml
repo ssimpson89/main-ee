@@ -14,7 +14,7 @@ permissions:
   packages: write
 
 jobs:
-  build_and_push_2.20:
+  build_and_push_2_20:
     runs-on: ubuntu-latest
     name: Build and push dev tag for Ansible 2.20
     steps:
@@ -38,10 +38,10 @@ jobs:
 
       - name: Push Ansible 2.20 dev image
         run: |
-         echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
-         docker push ghcr.io/${{ github.repository_owner }}/main-ee:dev
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
+          docker push ghcr.io/${{ github.repository_owner }}/main-ee:dev
 
-  build_and_push_2.16:
+  build_and_push_2_16:
     runs-on: ubuntu-latest
     name: Build and push dev-2.16 tag for Ansible 2.16
     steps:
@@ -65,5 +65,5 @@ jobs:
 
       - name: Push Ansible 2.16 dev image
         run: |
-         echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
-         docker push ghcr.io/${{ github.repository_owner }}/main-ee:dev-2.16
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
+          docker push ghcr.io/${{ github.repository_owner }}/main-ee:dev-2.16

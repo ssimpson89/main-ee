@@ -10,7 +10,7 @@ permissions:
   packages: write
 
 jobs:
-  release-2.20:
+  release_2_20:
     runs-on: ubuntu-latest
     name: Release Ansible 2.20 (Latest)
     steps:
@@ -42,7 +42,7 @@ jobs:
           docker push ghcr.io/${{ github.repository_owner }}/main-ee:${{ github.event.release.tag_name }}
           docker push ghcr.io/${{ github.repository_owner }}/main-ee:latest
 
-  release-2.16:
+  release_2_16:
     runs-on: ubuntu-latest
     name: Release Ansible 2.16 (Legacy)
     steps:
