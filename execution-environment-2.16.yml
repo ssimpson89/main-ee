@@ -5,7 +5,13 @@ images:
   base_image:
     name: rockylinux/rockylinux:9-minimal
 
+options:
+  package_manager_path: /usr/bin/microdnf
+
 dependencies:
+  python_interpreter:
+    package_system: python3.11
+    python_path: /usr/bin/python3.11
   ansible_core:
     package_pip: ansible-core>=2.16.14,<2.17
   ansible_runner:
@@ -38,6 +44,7 @@ dependencies:
     proxmoxer
     google-auth
   system: |
+    crypto-policies-scripts
     epel-release [platform:rpm]
     gcc [platform:rpm]
     gcc-c++ [platform:rpm]
@@ -47,10 +54,7 @@ dependencies:
     krb5-workstation [platform:rpm]
     libcurl-devel [platform:rpm compile]
     podman-remote [platform:rpm]
-    python3.11 [platform:rpm]
-    python3.11-pip [platform:rpm]
     python3.11-devel [platform:rpm compile]
-    python-unversioned-command [platform:rpm]
     rsync [platform:rpm]
     sshpass [platform:rpm]
     subversion [platform:dpkg]
@@ -60,15 +64,6 @@ dependencies:
     libxcrypt-compat.x86_64 [platform:rpm]
     google-cloud-cli [platform:rpm]
 
-  python_interpreter:
-    package_system: python3.11
-    python_path: /usr/bin/python3.11
-
-options:
-  package_manager_path: /usr/bin/microdnf
-  container_init:
-    package_pip: pip>=21.1
-
 additional_build_files:
   - src: includes/sudoers
     dest: configs
@@ -76,14 +71,13 @@ additional_build_files:
     dest: configs
 
 additional_build_steps:
-  append_base:
+  prepend_base:
     - ADD _build/configs/google-cloud-cli.repo /etc/yum.repos.d/google-cloud-cli.repo
     - RUN microdnf -y install google-cloud-cli
   prepend_final:
     - COPY --from=quay.io/ansible/receptor:devel /usr/bin/receptor /usr/bin/receptor
     - RUN mkdir -p /etc/receptor
   append_final:
-    - RUN alternatives --set python3 /usr/bin/python3.11
     - COPY _build/configs/sudoers /etc/sudoers.d/ascender
     - RUN chmod 0440 /etc/sudoers.d/ascender
     - RUN mkdir -p /runner && chown 1000:1000 /runner && chmod 0750 /runner
