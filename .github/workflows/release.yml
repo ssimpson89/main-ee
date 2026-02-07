@@ -34,13 +34,13 @@ jobs:
 
       - name: Apply latest tag
         run: |
-         docker tag ghcr.io/${{ github.repository_owner }}/main-ee:${{ github.event.release.tag_name }} ghcr.io/${{ github.repository_owner }}/main-ee:latest
+          docker tag ghcr.io/${{ github.repository_owner }}/main-ee:${{ github.event.release.tag_name }} ghcr.io/${{ github.repository_owner }}/main-ee:latest
 
       - name: Push Ansible 2.20 images
         run: |
-         echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
-         docker push ghcr.io/${{ github.repository_owner }}/main-ee:${{ github.event.release.tag_name }}
-         docker push ghcr.io/${{ github.repository_owner }}/main-ee:latest
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
+          docker push ghcr.io/${{ github.repository_owner }}/main-ee:${{ github.event.release.tag_name }}
+          docker push ghcr.io/${{ github.repository_owner }}/main-ee:latest
 
   release-2.16:
     runs-on: ubuntu-latest
@@ -66,10 +66,10 @@ jobs:
 
       - name: Apply latest-2.16 tag
         run: |
-         docker tag ghcr.io/${{ github.repository_owner }}/main-ee:${{ github.event.release.tag_name }}-2.16 ghcr.io/${{ github.repository_owner }}/main-ee:latest-2.16
+          docker tag ghcr.io/${{ github.repository_owner }}/main-ee:${{ github.event.release.tag_name }}-2.16 ghcr.io/${{ github.repository_owner }}/main-ee:latest-2.16
 
       - name: Push Ansible 2.16 images
         run: |
-         echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
-         docker push ghcr.io/${{ github.repository_owner }}/main-ee:${{ github.event.release.tag_name }}-2.16
-         docker push ghcr.io/${{ github.repository_owner }}/main-ee:latest-2.16
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
+          docker push ghcr.io/${{ github.repository_owner }}/main-ee:${{ github.event.release.tag_name }}-2.16
+          docker push ghcr.io/${{ github.repository_owner }}/main-ee:latest-2.16
