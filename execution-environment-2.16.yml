@@ -73,8 +73,8 @@ additional_build_files:
 additional_build_steps:
   prepend_base:
     - RUN dnf update -y && dnf clean all
-    - RUN alternatives --set python3 /usr/bin/python3.11
   append_base:
+    - RUN alternatives --set python3 /usr/bin/python3.11
     - RUN $PYCMD -m pip install -U pip
     - ADD _build/configs/google-cloud-cli.repo /etc/yum.repos.d/google-cloud-cli.repo
     - RUN dnf -y install google-cloud-cli
