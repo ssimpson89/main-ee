@@ -40,17 +40,23 @@ dependencies:
   system: |
     epel-release [platform:rpm]
     gcc [platform:rpm]
-    git [platform:rpm]
-    krb5-devel [platform:rpm]
-    python3.11 [platform:rpm]
-    python3.11-pip [platform:rpm]
-    python3.11-devel [platform:rpm compile]
-    sshpass [platform:rpm]
+    gcc-c++ [platform:rpm]
+    git-core [platform:rpm]
+    git-lfs [platform:rpm]
+    krb5-devel [platform:rpm compile]
+    krb5-workstation [platform:rpm]
+    libcurl-devel [platform:rpm compile]
     podman-remote [platform:rpm]
+    python3.11-devel [platform:rpm compile]
+    python-unversioned-command [platform:rpm]
+    rsync [platform:rpm]
+    sshpass [platform:rpm]
+    subversion [platform:dpkg]
+    subversion [platform:rpm]
+    unzip [platform:rpm]
+    sudo [platform:rpm]
+    libxcrypt-compat.x86_64 [platform:rpm]
     google-cloud-cli [platform:rpm]
-
-build_arg_defaults:
-  PYCMD: /usr/bin/python3.11
 
 additional_build_files:
   - src: includes/configs/sudoers
@@ -61,10 +67,7 @@ additional_build_files:
 additional_build_steps:
   prepend_base:
     - RUN dnf -y install python3.11 python3.11-pip python3.11-devel
-    - RUN alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
     - RUN alternatives --set python3 /usr/bin/python3.11
-    - RUN python3 -m ensurepip
-    - RUN python3 -m pip install -U pip
   append_base:
     - RUN $PYCMD -m pip install -U pip
     - ADD configs/google-cloud-cli.repo /etc/yum.repos.d/google-cloud-cli.repo
@@ -78,3 +81,8 @@ additional_build_steps:
     - RUN mkdir -p /runner && chown 1000:1000 /runner && chmod 0750 /runner
     - RUN useradd -u 1000 -m -s /bin/bash ascender
     - RUN echo "ascender ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
+python_interpreter:
+  package_system: python3.11
+  python_path: /usr/bin/python3.11
+  package_manager_path: /usr/bin/microdnf
