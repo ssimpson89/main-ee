@@ -6,9 +6,7 @@ images:
     name: rockylinux/rockylinux:9
 
 options:
-  package_manager_path: /usr/bin/microdnf
-  build_arg_defaults:
-    PYCMD: /usr/bin/python3.11
+  package_manager_path: /usr/bin/dnf
 
 dependencies:
   ansible_core:
@@ -39,8 +37,6 @@ dependencies:
     - git [platform:rpm]
     - krb5-devel [platform:rpm]
     - python3.11-devel [platform:rpm compile]
-    - python3.11-pip [platform:rpm]
-    - python3.11-setuptools [platform:rpm]
     - sshpass [platform:rpm]
     - podman-remote [platform:rpm]
     - google-cloud-cli [platform:rpm]
@@ -55,6 +51,11 @@ dependencies:
     - google-auth
 
 additional_build_steps:
+  prepend_base:
+    - RUN dnf -y install python3.11
+    - RUN ln -sf /usr/bin/python3.11 /usr/bin/python3
+    - RUN python3 -m ensurepip
+    - RUN python3 -m pip install -U pip
   append_base:
     - ADD _build/configs/sudoers /etc/sudoers.d/ascender
     - RUN chmod 0440 /etc/sudoers.d/ascender
@@ -68,7 +69,3 @@ additional_build_steps:
     - RUN chown -R ascender:ascender /var/run/receptor
     - RUN chmod 0777 /runner
     - RUN chmod 0777 /var/run/receptor
-    - RUN alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
-    - RUN alternatives --install /usr/bin/python python /usr/bin/python3.11 1
-    - RUN ln -sf /usr/bin/python3.11 /usr/bin/python3
-    - RUN ln -sf /usr/bin/python3.11 /usr/bin/python
