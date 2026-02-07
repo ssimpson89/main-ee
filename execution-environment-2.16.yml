@@ -3,7 +3,12 @@ version: 3
 images:
   base_image:
     name: rockylinux/rockylinux:9
+options:
+  package_manager_path: /usr/bin/microdnf
 dependencies:
+  python_interpreter:
+    package_system: python3.11
+    python_path: /usr/bin/python3.11
   ansible_core:
     # Ansible 2.16 for legacy support
     package_pip: ansible-core>=2.16.0,<2.17
@@ -44,6 +49,10 @@ dependencies:
         version: ">=1.0.1"
   system: |
     epel-release [platform:rpm]
+    crb [platform:rpm]
+    python3.11 [platform:rpm]
+    python3.11-pip [platform:rpm]
+    python3.11-devel [platform:rpm compile]
     gcc [platform:rpm]
     gcc-c++ [platform:rpm]
     git-core [platform:rpm]
@@ -52,8 +61,6 @@ dependencies:
     krb5-workstation [platform:rpm]
     libcurl-devel [platform:rpm compile]
     podman-remote [platform:rpm]
-    python3.11-devel [platform:rpm compile]
-    python-unversioned-command [platform:rpm]
     rsync [platform:rpm]
     sshpass [platform:rpm]
     subversion [platform:dpkg]
@@ -62,6 +69,7 @@ dependencies:
     sudo [platform:rpm]
     libxcrypt-compat.x86_64 [platform:rpm]
     google-cloud-cli [platform:rpm]
+    alternatives --set python3 /usr/bin/python3.11 || true
   python: |
     git+https://github.com/ansible/ansible-sign
     ncclient
