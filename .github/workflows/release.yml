@@ -10,9 +10,9 @@ permissions:
   packages: write
 
 jobs:
-  release:
+  release-2.20:
     runs-on: ubuntu-latest
-    name: Release
+    name: Release Ansible 2.20 (Latest)
     steps:
       - uses: actions/checkout@v2
 
@@ -23,20 +23,53 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install tox
+          pip install ansible-builder
 
-      - name: Build image
+      - name: Build Ansible 2.20 image
         env:
           DOCKER_BUILDKIT: 1
         run: |
-          tox -e docker -- --tag=ghcr.io/${{ github.repository_owner }}/main-ee:${{ github.event.release.tag_name }}
+          docker rmi ghcr.io/${{ github.repository_owner }}/main-ee:${{ github.event.release.tag_name }} 2>/dev/null || true
+          ansible-builder build -v3 -t ghcr.io/${{ github.repository_owner }}/main-ee:${{ github.event.release.tag_name }} --container-runtime=docker -f execution-environment-2.20.yml
 
       - name: Apply latest tag
         run: |
          docker tag ghcr.io/${{ github.repository_owner }}/main-ee:${{ github.event.release.tag_name }} ghcr.io/${{ github.repository_owner }}/main-ee:latest
 
-      - name: Push images
+      - name: Push Ansible 2.20 images
         run: |
          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
          docker push ghcr.io/${{ github.repository_owner }}/main-ee:${{ github.event.release.tag_name }}
          docker push ghcr.io/${{ github.repository_owner }}/main-ee:latest
+
+  release-2.16:
+    runs-on: ubuntu-latest
+    name: Release Ansible 2.16 (Legacy)
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions/setup-python@v2
+        with:
+          python-version: "3.9"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ansible-builder
+
+      - name: Build Ansible 2.16 image
+        env:
+          DOCKER_BUILDKIT: 1
+        run: |
+          docker rmi ghcr.io/${{ github.repository_owner }}/main-ee:${{ github.event.release.tag_name }}-2.16 2>/dev/null || true
+          ansible-builder build -v3 -t ghcr.io/${{ github.repository_owner }}/main-ee:${{ github.event.release.tag_name }}-2.16 --container-runtime=docker -f execution-environment-2.16.yml
+
+      - name: Apply latest-2.16 tag
+        run: |
+         docker tag ghcr.io/${{ github.repository_owner }}/main-ee:${{ github.event.release.tag_name }}-2.16 ghcr.io/${{ github.repository_owner }}/main-ee:latest-2.16
+
+      - name: Push Ansible 2.16 images
+        run: |
+         echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
+         docker push ghcr.io/${{ github.repository_owner }}/main-ee:${{ github.event.release.tag_name }}-2.16
+         docker push ghcr.io/${{ github.repository_owner }}/main-ee:latest-2.16
