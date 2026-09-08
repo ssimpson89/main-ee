@@ -1,0 +1,25 @@
+# Python dependencies, shared by BOTH execution-environment variants.
+#
+# Not pinned yet. To pin: build once, then
+#   podman run --rm <image> python3 -m pip freeze > constraints.txt
+# and point `dependencies.python` at it in both EE files.
+ansible-sign
+boto3
+google-auth
+jmespath
+ncclient
+paramiko
+passlib
+pexpect>=4.5
+proxmoxer
+pykerberos
+pyOpenSSL
+pypsrp[kerberos,credssp]
+python-daemon
+pywinrm[kerberos,credssp]
+pyyaml
+receptorctl==1.6.8            # keep in step with the pinned receptor image
+requests
+requests-credssp
+six
+toml

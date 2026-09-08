@@ -1,0 +1,10 @@
+# Vendored from https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo
+# so that the trust configuration is reviewable rather than curl'd at build
+# time. $releasever/$basearch verified present for EL9 and EL10 on both
+# x86_64 and aarch64.
+[hashicorp]
+name=HashiCorp Stable - $basearch
+baseurl=https://rpm.releases.hashicorp.com/RHEL/$releasever/$basearch/stable
+enabled=1
+gpgcheck=1
+gpgkey=https://rpm.releases.hashicorp.com/gpg

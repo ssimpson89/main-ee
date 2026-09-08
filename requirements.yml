@@ -1,0 +1,53 @@
+---
+# Galaxy collections for the DEFAULT variant (ansible-core 2.20).
+#
+# Versions are pinned exactly. Two builds of the same commit then produce the
+# same collection set, which also makes the CI layer cache honest: a range
+# would let the cache serve one version while a fresh build resolves another.
+#
+# Bumping is a deliberate, reviewable commit. To see what is available:
+#   ansible-galaxy collection list --upgrade   (or check galaxy.ansible.com)
+#
+# The legacy variant has its own frozen list in requirements-2.16.yml. It does
+# NOT track this file. See that file's header for why.
+collections:
+  - name: amazon.aws
+    version: "9.5.0"
+  - name: ansible.posix
+    version: "2.2.2"
+  - name: ansible.utils
+    version: "6.1.0"
+  - name: ansible.windows
+    version: "3.8.0"
+  - name: ansibleguy.opnsense
+    version: "1.2.16"
+  - name: awx.awx
+    version: "24.6.1"
+  - name: azure.azcollection
+    version: "4.0.0"
+  - name: community.aws
+    version: "9.3.0"
+  - name: community.general
+    version: "13.4.0"
+  - name: community.libvirt
+    version: "2.3.0"
+  - name: community.proxmox
+    version: "2.0.0"
+  - name: community.vmware
+    version: "4.8.6"
+  - name: community.windows
+    version: "3.3.0"
+  - name: google.cloud
+    version: "1.14.0"
+  - name: kubernetes.core
+    version: "6.5.0"
+  - name: microsoft.ad
+    version: "1.12.1"
+  - name: openstack.cloud
+    version: "2.6.0"
+  - name: ovirt.ovirt
+    version: "3.2.2"
+  - name: theforeman.foreman
+    version: "5.12.0"
+  - name: vultr.cloud
+    version: "1.14.1"

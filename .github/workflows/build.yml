@@ -1,0 +1,181 @@
+---
+name: Build
+
+# Reusable: builds every variant for every arch, then assembles one multi-arch
+# manifest per variant.
+#
+# 2 variants x 2 arches = 4 build jobs in parallel, each on a runner native to
+# its arch. Do not swap this for QEMU: pykerberos, requests-credssp and
+# ovirt-engine-sdk-python have no prebuilt aarch64 wheels and compile from
+# source, which is unusably slow under emulation.
+on:
+  workflow_call:
+    inputs:
+      version_tag:
+        description: Primary tag, e.g. 2026.02.1 or dev. Ignored when push is false.
+        required: false
+        default: pr
+        type: string
+      moving_tag:
+        description: Extra moving tag, e.g. latest. Empty to skip.
+        required: false
+        default: ""
+        type: string
+      push:
+        description: Publish images. False builds and validates only, for PRs.
+        required: false
+        default: true
+        type: boolean
+
+# No `permissions:` block here on purpose. A called workflow can only narrow
+# the caller's token, never widen it, so declaring `packages: write` would make
+# any caller that grants less fail at startup with zero jobs. Each caller sets
+# the scope it needs: write for release and dev, read for PRs.
+
+env:
+  IMAGE: ghcr.io/${{ github.repository_owner }}/main-ee
+  ANSIBLE_BUILDER_VERSION: 3.1.1
+
+jobs:
+  build:
+    name: ansible ${{ matrix.ansible }} / ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # `suffix` is carried as data so no step has to re-derive it.
+        ansible: ["2.20", "2.16"]
+        arch: [amd64, arm64]
+        include:
+          - ansible: "2.20"
+            suffix: ""
+          - ansible: "2.16"
+            suffix: "-2.16"
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install ansible-builder
+        run: pip install "ansible-builder==${ANSIBLE_BUILDER_VERSION}"
+
+      - name: Generate build context
+        run: ansible-builder create -v3 -f "execution-environment-${{ matrix.ansible }}.yml" -c context
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        if: ${{ inputs.push }}
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # On push, export by digest only; the merge job below turns the per-arch
+      # digests into the tags people actually pull. On PR, build and throw away.
+      #
+      # provenance is off because the attestation manifest it adds makes the
+      # pushed reference an index, which `buildx imagetools create` cannot then
+      # nest into the final manifest list.
+      - name: Build
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: ./context
+          file: ./context/Containerfile
+          platforms: linux/${{ matrix.arch }}
+          provenance: false
+          cache-from: type=gha,scope=${{ matrix.ansible }}-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.ansible }}-${{ matrix.arch }}
+          outputs: >-
+            ${{ inputs.push
+              && format('type=image,name={0},push-by-digest=true,name-canonical=true,push=true', env.IMAGE)
+              || 'type=cacheonly' }}
+
+      - name: Export digest
+        if: ${{ inputs.push }}
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          set -euo pipefail
+          [ -n "$DIGEST" ] || { echo "::error::build produced an empty digest"; exit 1; }
+          mkdir -p /tmp/digests
+          touch "/tmp/digests/${{ matrix.arch }}@${DIGEST#sha256:}"
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ inputs.push }}
+        with:
+          name: digests-${{ matrix.ansible }}-${{ matrix.arch }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge:
+    name: Manifest for ansible ${{ matrix.ansible }}
+    runs-on: ubuntu-24.04
+    needs: [build]
+    # Not `success()`: a matrix job fails as a whole, so a broken 2.16/arm64
+    # leg would otherwise block the 2.20 manifest even though both its legs
+    # passed. The digest-count assertion below is what stops a half-built
+    # variant from publishing a single-arch image under a real tag.
+    if: ${{ inputs.push && !cancelled() }}
+    strategy:
+      fail-fast: false
+      matrix:
+        ansible: ["2.20", "2.16"]
+        include:
+          - ansible: "2.20"
+            suffix: ""
+          - ansible: "2.16"
+            suffix: "-2.16"
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: digests-${{ matrix.ansible }}-*
+          merge-multiple: true
+          path: /tmp/digests
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Inputs go through env, never straight into the script: ${{ }} is
+      # substituted before bash parses, and a release tag may legally contain
+      # $, backticks or semicolons.
+      - name: Create manifest list
+        env:
+          VERSION_TAG: ${{ inputs.version_tag }}
+          MOVING_TAG: ${{ inputs.moving_tag }}
+          SUFFIX: ${{ matrix.suffix }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+
+          files=(/tmp/digests/*)
+          if [ "${#files[@]}" -ne 2 ]; then
+            echo "::error::expected 2 arch digests, found ${#files[@]}. Refusing to publish a partial manifest."
+            exit 1
+          fi
+
+          sources=()
+          for f in "${files[@]}"; do
+            sources+=( "${IMAGE}@sha256:${f##*@}" )
+          done
+
+          tags=( --tag "${IMAGE}:${VERSION_TAG}${SUFFIX}" )
+          if [ -n "$MOVING_TAG" ]; then
+            tags+=( --tag "${IMAGE}:${MOVING_TAG}${SUFFIX}" )
+          fi
+
+          docker buildx imagetools create "${tags[@]}" "${sources[@]}"
+          docker buildx imagetools inspect "${IMAGE}:${VERSION_TAG}${SUFFIX}"

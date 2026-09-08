@@ -1,69 +1,22 @@
-name: Build and Push latest image
+---
+name: Build dev images
 
 on:
   workflow_dispatch:
-#   push:
-#     branches:
-#       - main
-  # schedule:
-  #   # build every 12 hours
-  #   - cron: '0 */12 * * *'
+  schedule:
+    # Rebuild nightly so the dev tag picks up base-image errata.
+    - cron: "0 4 * * *"
 
 permissions:
   contents: read
   packages: write
 
+concurrency:
+  group: dev-build
+  cancel-in-progress: false
+
 jobs:
-  build_and_push_2_20:
-    runs-on: ubuntu-latest
-    name: Build and push dev tag for Ansible 2.20
-    steps:
-      - uses: actions/checkout@v2
-
-      - uses: actions/setup-python@v2
-        with:
-          python-version: "3.9"
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install ansible-builder
-
-      - name: Build Ansible 2.20 image
-        env:
-          DOCKER_BUILDKIT: 1
-        run: |
-          docker rmi ghcr.io/${{ github.repository_owner }}/main-ee:dev 2>/dev/null || true
-          ansible-builder build -v3 -t ghcr.io/${{ github.repository_owner }}/main-ee:dev --container-runtime=docker -f execution-environment-2.20.yml
-
-      - name: Push Ansible 2.20 dev image
-        run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
-          docker push ghcr.io/${{ github.repository_owner }}/main-ee:dev
-
-  build_and_push_2_16:
-    runs-on: ubuntu-latest
-    name: Build and push dev-2.16 tag for Ansible 2.16
-    steps:
-      - uses: actions/checkout@v2
-
-      - uses: actions/setup-python@v2
-        with:
-          python-version: "3.9"
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install ansible-builder
-
-      - name: Build Ansible 2.16 image
-        env:
-          DOCKER_BUILDKIT: 1
-        run: |
-          docker rmi ghcr.io/${{ github.repository_owner }}/main-ee:dev-2.16 2>/dev/null || true
-          ansible-builder build -v3 -t ghcr.io/${{ github.repository_owner }}/main-ee:dev-2.16 --container-runtime=docker -f execution-environment-2.16.yml
-
-      - name: Push Ansible 2.16 dev image
-        run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
-          docker push ghcr.io/${{ github.repository_owner }}/main-ee:dev-2.16
+  build:
+    uses: ./.github/workflows/build.yml
+    with:
+      version_tag: dev

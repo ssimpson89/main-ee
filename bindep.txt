@@ -1,0 +1,48 @@
+# System packages common to BOTH execution-environment variants.
+#
+# Profile tags:
+#   [platform:rpm]          installed into the final image
+#   [platform:rpm compile]  builder stage only, kept out of the final image
+#
+# Everything here was checked to resolve from the base repos on both Rocky 9
+# and Rocky 10, so neither variant needs EPEL for this list.
+#
+# Two kinds of package deliberately do NOT belong here, because they are not
+# actually common, and putting them here breaks one variant or the other:
+#
+#   python-versioned (python3-devel, python3.11-rpm, ...)
+#       bindep cannot template the interpreter name.
+#   packages whose availability or dependencies differ by EL version
+#       python-unversioned-command pulls python3 3.9 on EL9, which fights the
+#       legacy variant's python3.11; epel-release is only needed on EL9, for
+#       python3.11-rpm.
+#
+# Both kinds live in the relevant execution-environment-*.yml instead.
+#
+# Do not pin an architecture (libxcrypt-compat.x86_64): dnf resolves the right
+# arch, and a hardcoded one breaks the arm64 build.
+
+crypto-policies-scripts [platform:rpm]
+findutils [platform:rpm]
+git-core [platform:rpm]
+git-lfs [platform:rpm]
+google-cloud-cli [platform:rpm]
+krb5-workstation [platform:rpm]
+libxcrypt-compat [platform:rpm]
+podman-remote [platform:rpm]
+rsync [platform:rpm]
+sshpass [platform:rpm]
+subversion [platform:rpm]
+sudo [platform:rpm]
+unzip [platform:rpm]
+
+# Build-time only. Needed to compile wheels with no prebuilt aarch64
+# distribution (pykerberos, requests-credssp, ovirt-engine-sdk-python).
+cmake [platform:rpm compile]
+gcc [platform:rpm compile]
+gcc-c++ [platform:rpm compile]
+krb5-devel [platform:rpm compile]
+libcurl-devel [platform:rpm compile]
+libffi-devel [platform:rpm compile]
+libxml2-devel [platform:rpm compile]
+openssl-devel [platform:rpm compile]
