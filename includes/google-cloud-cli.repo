@@ -1,7 +1,28 @@
+# $releasever is the major version alone on Rocky (verified: 10 on Rocky 10),
+# and cloud-sdk-el{9,10}-{x86_64,aarch64} all exist, so one file covers both
+# variants and both arches.
+#
+# gpgcheck is OFF, deliberately, and only for this repo.
+#
+# Google signs these packages with key F09C394C3E1BA8D5, created in 2015 with
+# a SHA-1 self-signature (digest algo 2). EL10's rpm-sequoia backend rejects
+# it under the default crypto policy: "No binding signature at time ...", so
+# `rpm --import` fails and the install dies with "GPG check FAILED". Verified
+# against rockylinux:10 directly.
+#
+# Their newer yum-key.gpg (C0BA5CE6DC6315A3, SHA-512) does import on EL10 but
+# does not match the package signatures, so it does not help.
+#
+# The remaining options were to relax the crypto policy process-wide on the
+# default image, which is exactly what we refuse to do outside the legacy
+# variant, or to accept TLS to packages.cloud.google.com as the trust
+# boundary. We accept TLS. Revisit if Google ever re-signs with a modern key.
+#
+# HashiCorp's repo does verify correctly and keeps gpgcheck=1; see
+# includes/hashicorp.repo.
 [google-cloud-cli]
 name=Google Cloud CLI
 baseurl=https://packages.cloud.google.com/yum/repos/cloud-sdk-el$releasever-$basearch
 enabled=1
-gpgcheck=1
+gpgcheck=0
 repo_gpgcheck=0
-gpgkey=https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
