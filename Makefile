@@ -1,50 +1,60 @@
-.PHONY: help build build-docker build-podman build-2.16 build-2.20 build-all clean install
+.PHONY: help install create build build-2.16 build-2.20 build-all clean
 
-# Default values
-RUNTIME ?= podman
-TAG ?= ghcr.io/ssimpson89/main-ee:latest
+RUNTIME         ?= podman
 ANSIBLE_VERSION ?= 2.20
+IMAGE           ?= ghcr.io/ssimpson89/main-ee
+ANSIBLE_BUILDER_VERSION ?= 3.1.1
+
+SUPPORTED_VERSIONS = 2.16 2.20
+
+# 2.20 is the default variant, so it lives in the unsuffixed file and gets
+# the unsuffixed tag. Everything else is suffixed with its version.
+ifeq ($(ANSIBLE_VERSION),2.20)
+  EE_FILE    = execution-environment.yml
+  TAG_SUFFIX =
+else
+  EE_FILE    = execution-environment-$(ANSIBLE_VERSION).yml
+  TAG_SUFFIX = -$(ANSIBLE_VERSION)
+endif
+
+TAG ?= $(IMAGE):latest$(TAG_SUFFIX)
 
 help: ## Show this help message
 	@echo "Available targets:"
-	@awk 'BEGIN {FS = ":.*##"; printf "\n"} /^[a-zA-Z_-]+:.*##/ { printf "  %-15s %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
+	@awk 'BEGIN {FS = ":.*##"} /^[a-zA-Z0-9_.-]+:.*##/ { printf "  %-14s %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
+	@echo ""
+	@echo "Variables:"
+	@echo "  RUNTIME=$(RUNTIME) (podman|docker)"
+	@echo "  ANSIBLE_VERSION=$(ANSIBLE_VERSION) ($(SUPPORTED_VERSIONS))"
+	@echo "  TAG=$(TAG)"
 
-install: ## Install ansible-builder
-	pip install 'git+https://github.com/ansible/ansible-builder.git@devel#egg=ansible-builder'
+install: ## Install ansible-builder at the version CI uses
+	pip install "ansible-builder==$(ANSIBLE_BUILDER_VERSION)"
 
-build: ## Build execution environment (default: podman, ansible 2.20)
-	@echo "Building with $(RUNTIME) using Ansible $(ANSIBLE_VERSION)..."
-	@$(RUNTIME) rmi $(TAG) 2>/dev/null || true
-	@if [ "$(ANSIBLE_VERSION)" = "2.16" ]; then \
-		EE_FILE="execution-environment-2.16.yml"; \
-	else \
-		EE_FILE="execution-environment-2.20.yml"; \
-	fi; \
-	if [ "$(RUNTIME)" = "docker" ]; then \
-		ansible-builder build -v3 -t $(TAG) --container-runtime=docker -f $$EE_FILE; \
-	else \
-		ansible-builder build -v3 -t $(TAG) -f $$EE_FILE; \
+check-version:
+	@if ! echo "$(SUPPORTED_VERSIONS)" | grep -qw "$(ANSIBLE_VERSION)"; then \
+		echo "Unsupported ANSIBLE_VERSION '$(ANSIBLE_VERSION)'. Supported: $(SUPPORTED_VERSIONS)"; \
+		exit 1; \
 	fi
 
-build-podman: ## Build with podman
-	@$(MAKE) build RUNTIME=podman
+create: check-version ## Generate the build context without building
+	ansible-builder create -v3 -f $(EE_FILE) -c context
 
-build-docker: ## Build with docker
-	@$(MAKE) build RUNTIME=docker
+build: check-version ## Build one variant (ANSIBLE_VERSION=2.16|2.20)
+	@echo "Building $(TAG) from $(EE_FILE) with $(RUNTIME)"
+	ansible-builder build -v3 -t $(TAG) --container-runtime=$(RUNTIME) -f $(EE_FILE)
 
-build-2.16: ## Build Ansible 2.16 version
-	@$(MAKE) build ANSIBLE_VERSION=2.16 TAG=ghcr.io/ssimpson89/main-ee:latest-2.16
+build-2.20: ## Build the default variant (ansible-core 2.20, Rocky 10)
+	@$(MAKE) build ANSIBLE_VERSION=2.20
 
-build-2.20: ## Build Ansible 2.20 version
-	@$(MAKE) build ANSIBLE_VERSION=2.20 TAG=ghcr.io/ssimpson89/main-ee:latest
+build-2.16: ## Build the legacy variant (ansible-core 2.16, Rocky 9, EL8 targets)
+	@$(MAKE) build ANSIBLE_VERSION=2.16
 
-build-all: ## Build both Ansible 2.16 and 2.20 versions
-	@$(MAKE) build-2.16
-	@$(MAKE) build-2.20
+build-all: build-2.20 build-2.16 ## Build both variants
 
-clean: ## Remove built images
-	@echo "Cleaning up images..."
-	@podman rmi ghcr.io/ssimpson89/main-ee:latest 2>/dev/null || true
-	@podman rmi ghcr.io/ssimpson89/main-ee:latest-2.16 2>/dev/null || true
-	@docker rmi ghcr.io/ssimpson89/main-ee:latest 2>/dev/null || true
-	@docker rmi ghcr.io/ssimpson89/main-ee:latest-2.16 2>/dev/null || true
+clean: ## Remove locally built images and the generated context
+	@for v in $(SUPPORTED_VERSIONS); do \
+		if [ "$$v" = "2.20" ]; then t="$(IMAGE):latest"; else t="$(IMAGE):latest-$$v"; fi; \
+		$(RUNTIME) rmi "$$t" 2>/dev/null || true; \
+	done
+	@rm -rf context
