@@ -1,148 +1,78 @@
 ---
 version: 3
+
+# Default execution environment: ansible-core 2.20 on Rocky Linux 10.
+#
+# Collections, python packages and system packages live in the shared
+# requirements.yml / requirements.txt / bindep.txt so that this file and
+# execution-environment-2.16.yml cannot drift apart. Only the interpreter,
+# the ansible-core pin and the genuinely version-specific build steps differ.
+#
+# To manage EL8 or older targets, use execution-environment-2.16.yml.
+
 images:
   base_image:
-    name: rockylinux/rockylinux:9-minimal
-options:
-  package_manager_path: /usr/bin/microdnf
+    name: rockylinux/rockylinux:10
+
 dependencies:
+  # Declared explicitly even though it matches the Rocky 10 default: without
+  # it ansible-builder omits the PYPKG build arg entirely, and the
+  # $PYPKG-devel / $PYPKG-rpm steps below would expand to "-devel" / "-rpm".
   python_interpreter:
-    package_system: python3.11
-    python_path: /usr/bin/python3.11
+    package_system: python3
+    python_path: /usr/bin/python3
   ansible_core:
-    # Avoid Ansible 2.17 and above as it dropped support for Python 3.6, so it will not work with dnf on EL8 or below machines
-    package_pip: ansible-core>=2.16.14,<2.17
+    package_pip: ansible-core>=2.20.0,<2.21
   ansible_runner:
     package_pip: ansible-runner
-  galaxy: |
-    ---
-    collections:
-      - name: amazon.aws
-        version: "9.5.0"
-      - name: ansible.posix
-        version: ">=2.0.0"
-      - name: ansible.utils
-        version: ">=6.0.0"
-      - name: ansible.windows
-        version: ">=3.1.0"
-      - name: awx.awx
-        version: "24.6.1"
-      - name: azure.azcollection
-        version: ">=3.6.0"
-      - name: community.aws
-        version: "9.3.0"
-      - name: community.general
-        version: ">=11.0.0"
-      - name: community.windows
-        version: ">=3.0.0"
-      - name: community.vmware
-        version: "4.8.6"
-      - name: kubernetes.core
-        version: ">=6.0.0"
-      - name: microsoft.ad
-        version: ">=1.9.1"
-      - name: google.cloud
-        version: ">=1.6.0"
-      - name: openstack.cloud
-        version: ">=2.4.1"
-      - name: ovirt.ovirt
-        version: ">=3.2.1"
-      - name: theforeman.foreman
-        version: ">=5.4.0"
-      - name: vultr.cloud
-        version: ">=1.13.0"
-      - name: community.libvirt
-        version: ">=1.3.1"
-      - name: community.proxmox
-        version: ">=1.0.1"
-      - name: "ansibleguy.opnsense"
-        version: ">=1.2.12"
-  system: |
-    crypto-policies-scripts
-    epel-release [platform:rpm]
-    findutils [platform:rpm]
-    gcc [platform:rpm]
-    gcc-c++ [platform:rpm]
-    git-core [platform:rpm]
-    git-lfs [platform:rpm]
-    krb5-devel [platform:rpm compile]
-    krb5-workstation [platform:rpm]
-    libcurl-devel [platform:rpm compile]
-    podman-remote [platform:rpm]
-    python3.11-devel [platform:rpm compile]
-    python3.11-rpm [platform:rpm epel]
-    python-unversioned-command [platform:rpm]
-    rsync [platform:rpm]
-    sshpass [platform:rpm]
-    subversion [platform:rpm]
-    sudo [platform:rpm]
-    unzip [platform:rpm]
-    libxcrypt-compat [platform:rpm]
-    google-cloud-cli [platform:rpm]
-    cmake [platform:rpm compile]
-    openssl-devel [platform:rpm compile]
-    libffi-devel [platform:rpm compile]
-  python: |
-    ansible-sign
-    jmespath
-    ncclient
-    paramiko
-    pexpect>=4.5
-    pykerberos
-    pyOpenSSL
-    pypsrp[kerberos,credssp]
-    python-daemon
-    pywinrm[kerberos,credssp]
-    pyyaml
-    receptorctl
-    requests-credssp
-    six
-    toml
-    boto3
-    proxmoxer
-    google-auth
-    requests
-    passlib
-  exclude:
-    system:
-      - python3
-      - python3-devel
-      - python3-rpm
+  galaxy: requirements.yml
+  python: requirements.txt
+  system: bindep.txt
+
 additional_build_files:
-  - src: includes/sudoers
+  - src: includes/ascender.sudoers
+    dest: configs
+  - src: includes/google-cloud-cli.repo
     dest: configs
   - src: includes/update-ca-trust
     dest: files
-  - src: includes/google-cloud-cli.repo
-    dest: configs
+
 additional_build_steps:
+  # Everything here lands in the `base` stage, which galaxy, builder and
+  # final all inherit, so it is built and cached exactly once.
+  prepend_base:
+    - RUN $PKGMGR update -y && $PKGMGR clean all
   append_base:
     - RUN $PYCMD -m pip install -U pip
+    # ovirt-engine-sdk-python and a few others still emit
+    # incompatible-pointer-types, which is an error as of gcc 14.
     - ENV CFLAGS="-Wno-error=incompatible-pointer-types"
-    - ADD _build/configs/google-cloud-cli.repo /etc/yum.repos.d/google-cloud-cli.repo
-    - RUN chmod 644 /etc/yum.repos.d/google-cloud-cli.repo
-    - RUN curl https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo | tee /etc/yum.repos.d/terraform.repo
-    - RUN $PKGMGR install -y terraform
+    - COPY --chmod=644 _build/configs/google-cloud-cli.repo /etc/yum.repos.d/google-cloud-cli.repo
+    - >-
+      RUN curl -fsSL https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo
+      -o /etc/yum.repos.d/hashicorp.repo
+      && $PKGMGR install -y terraform
+      && $PKGMGR clean all
+
+  # bindep cannot template the interpreter name, so the python-versioned
+  # devel package is installed here instead. Builder stage only, so it stays
+  # out of the final image.
+  prepend_builder:
+    - RUN $PKGMGR install -y $PYPKG-devel
+
   append_final:
     - COPY --from=quay.io/ansible/receptor:devel /usr/bin/receptor /usr/bin/receptor
-    - RUN mkdir -p /var/run/receptor
-    - RUN git lfs install --system
-    - ADD _build/configs/sudoers /etc/sudoers
-    - RUN chmod 440 /etc/sudoers
-    - RUN mkdir -p /runner
-    - RUN useradd -G wheel -M -u 1000 -d /runner ascender
-    - RUN chown -R ascender:wheel /runner
-    # Symlink podman-remote to podman to allow podman to run Ascender jobs via receptor
-    - RUN ln -s /usr/bin/podman-remote /usr/bin/podman
-    # Update crypto policies to allow SHA1 for older servers (EL 7 & 8)
-    - RUN update-crypto-policies --set DEFAULT:SHA1
-    # Create user site-packages directory - Allowing lookup plugins to use modules installed via pip
+    - COPY --chmod=440 _build/configs/ascender.sudoers /etc/sudoers.d/ascender
+    - COPY --chmod=755 _build/files/update-ca-trust /usr/bin/update-ca-trust
+    # rpm bindings for the interpreter in use, so the dnf/yum modules work
+    # against localhost inside the EE.
+    - RUN $PKGMGR install -y --enablerepo epel $PYPKG-rpm && $PKGMGR clean all
+    - >-
+      RUN mkdir -p /var/run/receptor
+      && useradd -G wheel -M -u 1000 -d /runner ascender
+      && chown -R ascender:wheel /runner
+      && git lfs install --system
+      && ln -s /usr/bin/podman-remote /usr/bin/podman
+    # User site-packages, so lookup plugins can import pip-installed modules.
     - RUN mkdir -p $($PYCMD -m site --user-site | sed "s|$HOME|$(pwd)|")
     - RUN chmod -R ug+rwx $($PYCMD -m site --user-site | sed "s|$HOME|$(pwd)|" | cut -d '/' -f1,2,3)
-    # SymLink `python` -> `python3.11` and `python3` -> `python3.11` and `pip3` -> `pip3.11`
-    - >-
-      RUN alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
-      && alternatives --install /usr/bin/python python /usr/bin/python3.11 1
-      && alternatives --install /usr/bin/pip3 pip3 /usr/bin/pip3.11 1
-    - RUN microdnf update -y && microdnf clean all
-    - COPY --chmod=755 _build/files/update-ca-trust /usr/bin/update-ca-trust

@@ -1,0 +1,40 @@
+# System packages, shared by every execution-environment variant.
+#
+# Profile tags:
+#   [platform:rpm]          installed into the final image
+#   [platform:rpm compile]  builder stage only, kept out of the final image
+#
+# Do not add python-versioned packages here (python3-devel,
+# python3.11-devel, ...). bindep cannot template the interpreter name, and
+# the two variants use different ones. They are installed per variant via
+# $PYPKG in additional_build_steps instead.
+#
+# Do not pin an architecture (libxcrypt-compat.x86_64). dnf resolves the
+# right arch on its own, and a hardcoded one breaks the arm64 build.
+
+crypto-policies-scripts [platform:rpm]
+epel-release [platform:rpm]
+findutils [platform:rpm]
+git-core [platform:rpm]
+git-lfs [platform:rpm]
+google-cloud-cli [platform:rpm]
+krb5-workstation [platform:rpm]
+libxcrypt-compat [platform:rpm]
+podman-remote [platform:rpm]
+python-unversioned-command [platform:rpm]
+rsync [platform:rpm]
+sshpass [platform:rpm]
+subversion [platform:rpm]
+sudo [platform:rpm]
+unzip [platform:rpm]
+
+# Build-time only. Needed to compile wheels that have no prebuilt arm64
+# distribution (pykerberos, requests-credssp, ovirt-engine-sdk-python).
+cmake [platform:rpm compile]
+gcc [platform:rpm compile]
+gcc-c++ [platform:rpm compile]
+krb5-devel [platform:rpm compile]
+libcurl-devel [platform:rpm compile]
+libffi-devel [platform:rpm compile]
+libxml2-devel [platform:rpm compile]
+openssl-devel [platform:rpm compile]

@@ -1,0 +1,30 @@
+# Python dependencies, shared by every execution-environment variant.
+#
+# These are loose on purpose for now. To pin them, build once and capture the
+# resolved set from the image:
+#
+#   podman run --rm <image> python3 -m pip freeze > constraints.txt
+#
+# then reference it from each execution-environment file as
+# `dependencies.python: constraints.txt`. Do that once the collection pins
+# below are known-good on both ansible-core variants.
+ansible-sign
+boto3
+google-auth
+jmespath
+ncclient
+paramiko
+passlib
+pexpect>=4.5
+proxmoxer
+pykerberos
+pyOpenSSL
+pypsrp[kerberos,credssp]
+python-daemon
+pywinrm[kerberos,credssp]
+pyyaml
+receptorctl
+requests
+requests-credssp
+six
+toml

@@ -1,6 +1,21 @@
 ---
 version: 3
 
+# Legacy execution environment: ansible-core 2.16 on Rocky Linux 9.
+#
+# Why this variant exists: ansible-core 2.17 dropped Python 3.6 support, and
+# EL8's dnf/yum modules run under the target's system Python 3.6. Anything
+# 2.17 or newer therefore cannot manage EL8 or older hosts. Keep the pin
+# below 2.17 for as long as those targets are supported.
+#
+# Why the base stays on Rocky 9: ansible-core 2.16 does not support the
+# controller Python that ships as the default on Rocky 10. python3.11 from
+# the Rocky 9 repos is the supported interpreter here.
+#
+# Collections, python packages and system packages are shared with
+# execution-environment.yml via requirements.yml / requirements.txt /
+# bindep.txt. Only what genuinely differs lives in this file.
+
 images:
   base_image:
     name: rockylinux/rockylinux:9-minimal
@@ -16,72 +31,57 @@ dependencies:
     package_pip: ansible-core>=2.16.14,<2.17
   ansible_runner:
     package_pip: ansible-runner
-  galaxy: |
-    ---
-    collections:
-      - name: amazon.aws
-      - name: ansible.posix
-      - name: ansible.windows
-      - name: awx.awx
-      - name: azure.azcollection
-      - name: community.windows
-      - name: community.vmware
-      - name: kubernetes.core
-      - name: google.cloud
-      - name: openstack.cloud
-      - name: ovirt.ovirt
-      - name: theforeman.foreman
-      - name: vultr.cloud
-      - name: community.libvirt
-      - name: community.proxmox
-  python: |
-    git+https://github.com/ansible/ansible-sign
-    ncclient
-    paramiko
-    pexpect
-    pywinrm
-    boto3
-    proxmoxer
-    google-auth
-  system: |
-    crypto-policies-scripts
-    epel-release [platform:rpm]
-    gcc [platform:rpm]
-    gcc-c++ [platform:rpm]
-    git-core [platform:rpm]
-    git-lfs [platform:rpm]
-    krb5-devel [platform:rpm compile]
-    krb5-workstation [platform:rpm]
-    libcurl-devel [platform:rpm compile]
-    libxml2-devel [platform:rpm]
-    podman-remote [platform:rpm]
-    python3.11-devel [platform:rpm]
-    rsync [platform:rpm]
-    sshpass [platform:rpm]
-    subversion [platform:dpkg]
-    subversion [platform:rpm]
-    unzip [platform:rpm]
-    sudo [platform:rpm]
-    libxcrypt-compat.x86_64 [platform:rpm]
-    google-cloud-cli [platform:rpm]
+  galaxy: requirements.yml
+  python: requirements.txt
+  system: bindep.txt
+  exclude:
+    # Keep the 3.9 stack out. Collections that declare a bare python3
+    # dependency would otherwise drag it in alongside python3.11.
+    system:
+      - python3
+      - python3-devel
+      - python3-rpm
 
 additional_build_files:
-  - src: includes/sudoers
+  - src: includes/ascender.sudoers
     dest: configs
   - src: includes/google-cloud-cli.repo
     dest: configs
 
 additional_build_steps:
   prepend_base:
-    - ADD _build/configs/google-cloud-cli.repo /etc/yum.repos.d/google-cloud-cli.repo
-    - RUN microdnf -y install google-cloud-cli
-  prepend_final:
-    - COPY --from=quay.io/ansible/receptor:devel /usr/bin/receptor /usr/bin/receptor
-    - RUN mkdir -p /etc/receptor
+    - RUN $PKGMGR update -y && $PKGMGR clean all
+  append_base:
+    - RUN $PYCMD -m pip install -U pip
+    - ENV CFLAGS="-Wno-error=incompatible-pointer-types"
+    - COPY --chmod=644 _build/configs/google-cloud-cli.repo /etc/yum.repos.d/google-cloud-cli.repo
+    - >-
+      RUN curl -fsSL https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo
+      -o /etc/yum.repos.d/hashicorp.repo
+      && $PKGMGR install -y terraform
+      && $PKGMGR clean all
+
+  prepend_builder:
+    - RUN $PKGMGR install -y $PYPKG-devel
+
   append_final:
-    - COPY _build/configs/sudoers /etc/sudoers.d/ascender
-    - RUN chmod 0440 /etc/sudoers.d/ascender
-    - RUN mkdir -p /runner && chown 1000:1000 /runner && chmod 0750 /runner
-    - RUN useradd -u 1000 -m -s /bin/bash ascender
-    - RUN echo "ascender ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
-    - RUN microdnf update -y && microdnf clean all
+    - COPY --from=quay.io/ansible/receptor:devel /usr/bin/receptor /usr/bin/receptor
+    - COPY --chmod=440 _build/configs/ascender.sudoers /etc/sudoers.d/ascender
+    - RUN $PKGMGR install -y --enablerepo epel $PYPKG-rpm && $PKGMGR clean all
+    - >-
+      RUN mkdir -p /var/run/receptor
+      && useradd -G wheel -M -u 1000 -d /runner ascender
+      && chown -R ascender:wheel /runner
+      && git lfs install --system
+      && ln -s /usr/bin/podman-remote /usr/bin/podman
+    # Allow SHA1 so this image can still talk to EL7/EL8 endpoints, which is
+    # the whole reason the variant exists.
+    - RUN update-crypto-policies --set DEFAULT:SHA1
+    - RUN mkdir -p $($PYCMD -m site --user-site | sed "s|$HOME|$(pwd)|")
+    - RUN chmod -R ug+rwx $($PYCMD -m site --user-site | sed "s|$HOME|$(pwd)|" | cut -d '/' -f1,2,3)
+    # python3.11 is not the system python3 on EL9, so point the unversioned
+    # commands at it.
+    - >-
+      RUN alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
+      && alternatives --install /usr/bin/python python /usr/bin/python3.11 1
+      && alternatives --install /usr/bin/pip3 pip3 /usr/bin/pip3.11 1

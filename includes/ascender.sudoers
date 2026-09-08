@@ -1,0 +1,11 @@
+# Passwordless sudo for the runner user.
+#
+# Ascender jobs arrive over receptor and run as uid 1000 (ascender, in group
+# wheel). They need root inside the container to drive podman-remote and to
+# install packages during a play. The base image's packaged /etc/sudoers
+# enables %wheel with a password prompt, which there is no way to answer in a
+# non-interactive job, so override it here.
+#
+# This is a drop-in on purpose. The previous approach replaced the whole of
+# /etc/sudoers, which is owned by the sudo package and reverts on update.
+%wheel ALL=(ALL) NOPASSWD: ALL
