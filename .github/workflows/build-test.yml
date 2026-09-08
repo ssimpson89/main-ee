@@ -3,12 +3,17 @@ name: Build dev images
 
 on:
   workflow_dispatch:
-  # schedule:
-  #   - cron: '0 */12 * * *'
+  schedule:
+    # Rebuild nightly so the dev tag picks up base-image errata.
+    - cron: "0 4 * * *"
 
 permissions:
   contents: read
   packages: write
+
+concurrency:
+  group: dev-build
+  cancel-in-progress: false
 
 jobs:
   build:

@@ -1,0 +1,75 @@
+---
+version: 3
+
+# Default execution environment: ansible-core 2.20 on Rocky Linux 10.
+#
+# Shared with the legacy variant: requirements.txt (pip) and bindep.txt
+# (system). Collections are NOT shared, see requirements.yml.
+#
+# To manage EL8 or older targets, use execution-environment-2.16.yml.
+
+images:
+  base_image:
+    name: rockylinux/rockylinux:10
+
+options:
+  # ansible-builder otherwise emits `chmod ug+rw /etc/passwd` to support
+  # running as an arbitrary UID, which lets uid 1000 add a uid-0 entry.
+  # Ascender always runs this image as uid 1000, so we don't need it.
+  relax_passwd_permissions: false
+
+dependencies:
+  ansible_core:
+    package_pip: ansible-core>=2.20.0,<2.21
+  ansible_runner:
+    package_pip: ansible-runner
+  galaxy: requirements.yml
+  python: requirements.txt
+  system: bindep.txt
+
+additional_build_files:
+  - src: includes/ascender.sudoers
+    dest: configs
+  - src: includes/google-cloud-cli.repo
+    dest: configs
+  - src: includes/hashicorp.repo
+    dest: configs
+
+additional_build_steps:
+  # Everything here lands in the `base` stage, which galaxy, builder and final
+  # all inherit, so it is built and cached once.
+  prepend_base:
+    - RUN $PKGMGR update -y && $PKGMGR clean all
+  append_base:
+    - RUN $PYCMD -m pip install -U pip
+    # ovirt-engine-sdk-python and others still emit
+    # incompatible-pointer-types, an error as of gcc 14.
+    - ENV CFLAGS="-Wno-error=incompatible-pointer-types"
+    - COPY --chmod=644 _build/configs/google-cloud-cli.repo /etc/yum.repos.d/google-cloud-cli.repo
+    - COPY --chmod=644 _build/configs/hashicorp.repo /etc/yum.repos.d/hashicorp.repo
+    - RUN $PKGMGR install -y terraform && $PKGMGR clean all
+
+  # Not in bindep.txt: bindep cannot template the interpreter name. Builder
+  # stage only, so the headers stay out of the final image.
+  prepend_builder:
+    - RUN $PKGMGR install -y python3-devel
+
+  append_final:
+    # Pinned, not :devel. This is the daemon that receives jobs, so a floating
+    # tag means two builds of one git tag ship different receptors.
+    # Keep in step with receptorctl in requirements.txt.
+    - COPY --from=quay.io/ansible/receptor:v1.6.8 /usr/bin/receptor /usr/bin/receptor
+    - COPY --chmod=440 _build/configs/ascender.sudoers /etc/sudoers.d/ascender
+    # python3-rpm gives the dnf/yum modules working rpm bindings against
+    # localhost; python-unversioned-command provides /usr/bin/python. Both are
+    # EL-version specific, hence here rather than in bindep.txt.
+    - RUN $PKGMGR install -y python-unversioned-command python3-rpm && $PKGMGR clean all
+    - >-
+      RUN mkdir -p /etc/receptor
+      && useradd -M -u 1000 -d /runner ascender
+      && chown -R ascender:ascender /runner
+      && git lfs install --system
+      && ln -s /usr/bin/podman-remote /usr/bin/podman
+    # User site-packages, so lookup plugins can import pip-installed modules.
+    - RUN mkdir -p $($PYCMD -m site --user-site | sed "s|$HOME|$(pwd)|")
+    - RUN chmod -R ug+rwx $($PYCMD -m site --user-site | sed "s|$HOME|$(pwd)|" | cut -d '/' -f1,2,3)

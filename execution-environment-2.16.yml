@@ -5,16 +5,15 @@ version: 3
 #
 # Why this variant exists: ansible-core 2.17 dropped Python 3.6 support, and
 # EL8's dnf/yum modules run under the target's system Python 3.6. Anything
-# 2.17 or newer therefore cannot manage EL8 or older hosts. Keep the pin
-# below 2.17 for as long as those targets are supported.
+# 2.17 or newer cannot manage EL8 or older hosts. Keep the pin below 2.17 for
+# as long as those targets are supported.
 #
 # Why the base stays on Rocky 9: ansible-core 2.16 does not support the
-# controller Python that ships as the default on Rocky 10. python3.11 from
-# the Rocky 9 repos is the supported interpreter here.
+# controller Python that ships as the default on Rocky 10. python3.11 from the
+# Rocky 9 repos is the supported interpreter here.
 #
-# Collections, python packages and system packages are shared with
-# execution-environment.yml via requirements.yml / requirements.txt /
-# bindep.txt. Only what genuinely differs lives in this file.
+# Shared with the default variant: requirements.txt (pip) and bindep.txt
+# (system). Collections are frozen separately, see requirements-2.16.yml.
 
 images:
   base_image:
@@ -22,6 +21,8 @@ images:
 
 options:
   package_manager_path: /usr/bin/microdnf
+  # See the note in execution-environment-2.20.yml.
+  relax_passwd_permissions: false
 
 dependencies:
   python_interpreter:
@@ -31,12 +32,14 @@ dependencies:
     package_pip: ansible-core>=2.16.14,<2.17
   ansible_runner:
     package_pip: ansible-runner
-  galaxy: requirements.yml
+  galaxy: requirements-2.16.yml
   python: requirements.txt
   system: bindep.txt
   exclude:
-    # Keep the 3.9 stack out. Collections that declare a bare python3
-    # dependency would otherwise drag it in alongside python3.11.
+    # Keeps the 3.9 stack out. These apply to the bindep files that
+    # ansible-builder introspects out of the installed collections, not just
+    # to our own bindep.txt, so they are load-bearing even though nothing in
+    # bindep.txt names them.
     system:
       - python3
       - python3-devel
@@ -47,6 +50,8 @@ additional_build_files:
     dest: configs
   - src: includes/google-cloud-cli.repo
     dest: configs
+  - src: includes/hashicorp.repo
+    dest: configs
 
 additional_build_steps:
   prepend_base:
@@ -55,27 +60,33 @@ additional_build_steps:
     - RUN $PYCMD -m pip install -U pip
     - ENV CFLAGS="-Wno-error=incompatible-pointer-types"
     - COPY --chmod=644 _build/configs/google-cloud-cli.repo /etc/yum.repos.d/google-cloud-cli.repo
-    - >-
-      RUN curl -fsSL https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo
-      -o /etc/yum.repos.d/hashicorp.repo
-      && $PKGMGR install -y terraform
-      && $PKGMGR clean all
+    - COPY --chmod=644 _build/configs/hashicorp.repo /etc/yum.repos.d/hashicorp.repo
+    - RUN $PKGMGR install -y terraform && $PKGMGR clean all
 
   prepend_builder:
-    - RUN $PKGMGR install -y $PYPKG-devel
+    - RUN $PKGMGR install -y python3.11-devel
 
   append_final:
-    - COPY --from=quay.io/ansible/receptor:devel /usr/bin/receptor /usr/bin/receptor
+    # Pinned, not :devel. Keep in step with receptorctl in requirements.txt.
+    - COPY --from=quay.io/ansible/receptor:v1.6.8 /usr/bin/receptor /usr/bin/receptor
     - COPY --chmod=440 _build/configs/ascender.sudoers /etc/sudoers.d/ascender
-    - RUN $PKGMGR install -y --enablerepo epel $PYPKG-rpm && $PKGMGR clean all
+    # python3.11-rpm is EPEL-only on EL9, and EPEL is needed for nothing else,
+    # so it is enabled here rather than carried in the shared bindep.txt.
+    # python-unversioned-command is deliberately absent: on EL9 it hard-requires
+    # python3 3.9. The alternatives calls below provide /usr/bin/python instead.
     - >-
-      RUN mkdir -p /var/run/receptor
-      && useradd -G wheel -M -u 1000 -d /runner ascender
-      && chown -R ascender:wheel /runner
+      RUN $PKGMGR install -y epel-release
+      && $PKGMGR install -y --enablerepo epel python3.11-rpm
+      && $PKGMGR clean all
+    - >-
+      RUN mkdir -p /etc/receptor
+      && useradd -M -u 1000 -d /runner ascender
+      && chown -R ascender:ascender /runner
       && git lfs install --system
       && ln -s /usr/bin/podman-remote /usr/bin/podman
-    # Allow SHA1 so this image can still talk to EL7/EL8 endpoints, which is
-    # the whole reason the variant exists.
+    # Allow SHA1 so this image can still reach EL7/EL8 endpoints, which is the
+    # whole reason the variant exists. Process-wide, so it also relaxes TLS to
+    # Galaxy and cloud APIs. Never add this to the default variant.
     - RUN update-crypto-policies --set DEFAULT:SHA1
     - RUN mkdir -p $($PYCMD -m site --user-site | sed "s|$HOME|$(pwd)|")
     - RUN chmod -R ug+rwx $($PYCMD -m site --user-site | sed "s|$HOME|$(pwd)|" | cut -d '/' -f1,2,3)
