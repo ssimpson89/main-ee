@@ -27,9 +27,10 @@ on:
         default: true
         type: boolean
 
-permissions:
-  contents: read
-  packages: write
+# No `permissions:` block here on purpose. A called workflow can only narrow
+# the caller's token, never widen it, so declaring `packages: write` would make
+# any caller that grants less fail at startup with zero jobs. Each caller sets
+# the scope it needs: write for release and dev, read for PRs.
 
 env:
   IMAGE: ghcr.io/${{ github.repository_owner }}/main-ee
