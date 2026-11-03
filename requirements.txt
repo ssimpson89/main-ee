@@ -11,7 +11,7 @@ ncclient
 paramiko
 passlib
 pexpect>=4.5
-proxmoxer
+proxmoxer>=2.3
 pykerberos
 pyOpenSSL
 pypsrp[kerberos,credssp]
